@@ -87,11 +87,29 @@ Four edubfm_Insert(
 
 
     CHECKKEY(key);    /*@ check validity of key */
+    if(IS_BAD_BUFFERTYPE(type)) ERR(eBADBUFFERTYPE_BFM);	
 
-    if( (index < 0) || (index > BI_NBUFS(type)) )
+    // check if out-of-index
+    if( (index < 0) || (index >= BI_NBUFS(type)) )
         ERR( eBADBUFINDEX_BFM );
 
-   
+    /*
+    Determine the position in hashTable to insert the array index of the
+    buffer element by using the hash value of the 
+    page/train residing in the buffer element.
+    */
+    hashValue = BFM_HASH(key, type);
+    i = BI_HASHTABLEENTRY(type, hashValue);
+    // if not collision insert the array index into the position determined.
+    if( i == NIL ) {
+        BI_HASHTABLEENTRY(type, hashValue) = index;
+
+    }
+    // If there is a collision, use the chaining method to handle the collision.
+    else {
+        BI_NEXTHASHENTRY(type, index) = i;
+        BI_HASHTABLEENTRY(type, hashValue) = index;
+    }
 
     return( eNOERROR );
 
@@ -126,10 +144,46 @@ Four edubfm_Delete(
 
     CHECKKEY(key);    /*@ check validity of key */
 
+    /*
+    Search for the array index of the buffer element containing the
+    page/train to be deleted from hashTable by using the hash value
+    of the page/train residing in the buffer element.
+    */
+    hashValue = BFM_HASH (key, type);
 
+    prev = NIL;
+    
+    i = BI_HASHTABLEENTRY(type, hashValue);
 
-    ERR( eNOTFOUND_BFM );
+    if ( i == NIL ) {
+        ERR( eNOTFOUND_BFM );
+    }
+     while (i != NIL) {
+        // Delete the entry (array index) found from hashTable
+        if (EQUALKEY(&BI_KEY(type, i), key)) {
+            // No next & No prev
+            if( BI_NEXTHASHENTRY(type, i) == NIL && prev == NIL ) {
+                BI_HASHTABLEENTRY(type, hashValue) = NIL;
+            }
+            // No next & Yes prev
+            else if ( BI_NEXTHASHENTRY(type, i) == NIL ) {
+                BI_NEXTHASHENTRY(type, prev) = NIL;
+            }
+            //  Yes next & No prev
+            else if (BI_NEXTHASHENTRY(type, i) != NIL && prev == NIL ) {
+                BI_HASHTABLEENTRY(type, hashValue) = BI_NEXTHASHENTRY(type, i);
+            }
+            // Yes next & Yes prev
+            else {
+                BI_NEXTHASHENTRY(type, prev) = BI_NEXTHASHENTRY(type, i);
+            }
+            return( eNOERROR );
+        }
 
+        prev = i;
+        i = BI_NEXTHASHENTRY(type, i);
+    }
+    return( eNOERROR );
 }  /* edubfm_Delete */
 
 
@@ -161,10 +215,30 @@ Four edubfm_LookUp(
 
     CHECKKEY(key);    /*@ check validity of key */
 
+    /*
+    Search for the array index of the buffer element having the
+    page/train whose hash key (BfMHashKey) is the same with
+    that given as a parameter from hashTable, and return it.
+    */
+    hashValue = BFM_HASH(key, type);
 
+    i = BI_HASHTABLEENTRY(type, hashValue);
 
-    return(NOTFOUND_IN_HTABLE);
-    
+    /*
+    Using the hash key, search for the array index of the buffer
+    element containing the page/train having the hash key from
+    hashTable.
+    */
+    while ( i != NIL ) {
+       
+        if (EQUALKEY(&BI_KEY(type, i), key))
+        //Return the array index found.
+            return i;
+        
+        i = BI_NEXTHASHENTRY(type, i);
+    }
+    // if i = NIL initially
+    return( NOTFOUND_IN_HTABLE );
 }  /* edubfm_LookUp */
 
 
@@ -186,11 +260,22 @@ Four edubfm_LookUp(
  */
 Four edubfm_DeleteAll(void)
 {
-    Two 	i;
-    Four        tableSize;
+    Two 		i;
+    Four 		type, tableSize;
     
+    /*
+    Delete every entry (array index of the buffer element) from
+    each hashTable. 
+    */
 
+    for ( type = 0; type < NUM_BUF_TYPES; type++) {
+        tableSize = HASHTABLESIZE(type);
 
-    return(eNOERROR);
+        for (i = 0; i < tableSize; i++) {
+            BI_HASHTABLEENTRY(type, i) = NIL;
+        }
+    }
+
+    return( eNOERROR );
 
 } /* edubfm_DeleteAll() */ 

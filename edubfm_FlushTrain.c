@@ -70,9 +70,32 @@ Four edubfm_FlushTrain(
 
 	/* Error check whether using not supported functionality by EduBfM */
 	if (RM_IS_ROLLBACK_REQUIRED()) ERR(eNOTSUPPORTED_EDUBFM);
+    // Write out a modified page/train into the disk. 
 
+    /*
+    Search for the array index of the buffer element containing the
+    page/train to be flushed from hashTable by using the hash value
+    of the page/train residing in the buffer element.
+    */
+    index = edubfm_LookUp(trainId, type);
 
-	
+	if ( index == NOTFOUND_IN_HTABLE ) {
+        ERR( eNOTFOUND_BFM );
+    }
+    else {
+        /*
+        If the DIRTY bit of the buffer element is set to 1, write out the
+        page/train into the disk.
+        */
+        if(BI_BITS(type, index) == DIRTY) {
+            e = RDsM_WriteTrain(BI_BUFFER(type, index), trainId, BI_BUFSIZE(type));
+            if ( e < 0 ) ERR (e);
+
+            // Reset the DIRTY bit.
+            BI_BITS(type, index) ^= DIRTY;
+
+        }
+    }
     return( eNOERROR );
 
 }  /* edubfm_FlushTrain */

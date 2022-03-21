@@ -66,7 +66,30 @@ Four EduBfM_FreeTrain(
     /*@ check if the parameter is valid. */
     if (IS_BAD_BUFFERTYPE(type)) ERR(eBADBUFFERTYPE_BFM);	
 
+    // Unfix the page/train from bufferPool.
 
+    /** 
+    Search for the array index of the buffer element containing 
+    the page/train to be unfixed from hashTable using its hash value.
+    **/
+    index = edubfm_LookUp(trainId, type);
+
+    //check if error
+    if (index == NOTFOUND_IN_HTABLE) {
+        ERR(eNOTFOUND_BFM);
+    }
+
+    // Decrease the variable fixed of the buffer element by 1
+    else {
+        BI_FIXED(type, index) -= 1;
+
+        // If the value of fixed becomes less than 0
+        if (BI_FIXED(type, index) < 0) {
+            printf("fixed counter is less than 0!!!\n");
+            printf("trainId = {%d, %d}\n", trainId->volNo, trainId->pageNo);
+            BI_FIXED(type, index) = 0;
+        }
+    }
     
     return( eNOERROR );
     

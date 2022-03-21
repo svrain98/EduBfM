@@ -59,7 +59,20 @@ Four EduBfM_DiscardAll(void)
     Two 	i;			/* index */
     Four 	type;			/* buffer type */
 
+    /* 
+    Delete pages/trains residing in each bufferPool 
+    without writing them out to disk
+    */
+    for( type = 0 ; type < NUM_BUF_TYPES ; type++)
+        for ( i = 0 ; i < BI_NBUFS(type) ; i++ ) {
 
+            // key: set pageNo to NIL(-1).
+            BI_KEY(type, i).pageNo = NIL;  
+            // bits: reset all bits.
+            BI_BITS(type, i) = 0;
+        }
+    // Delete every entry (i.e., array index) in hashTable
+    edubfm_DeleteAll();
 
     return(eNOERROR);
 

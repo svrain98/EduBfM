@@ -60,7 +60,20 @@ Four EduBfM_FlushAll(void)
     Two         i;                      /* index */
     Four        type;                   /* buffer type */
 
-    
+    // Write out the modified pages/trains residing in each bufferPool to the disk.
+    for( type = 0 ; type < NUM_BUF_TYPES ; type++)
+        for ( i = 0 ; i < BI_NBUFS(type) ; i++ ) {
+
+            /*
+            Write out each page/train residing in the buffer element whose
+            DIRTY bit is set to 1 to the disk by calling edubfm_FlushTrain().
+            */
+            if( BI_BITS(type, i) & DIRTY) {
+                e = bfm_FlushTrain(&BI_KEY(type, i), type);
+                
+                if ( e < 0 ) ERR(e);
+                }
+        }
 
     return( eNOERROR );
     

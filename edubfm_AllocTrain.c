@@ -80,7 +80,65 @@ Four edubfm_AllocTrain(
 	if(sm_cfgParams.useBulkFlush) ERR(eNOTSUPPORTED_EDUBFM);
 
 
+    /*
+    Allocate a buffer element in bufferPool to store a page/train,
+    and return the array index of the buffer element.
+    */
+
     
-    return( victim );
+    victim = BI_NEXTVICTIM(type);
+    /*
+    Use the second chance buffer replacement algorithm to select the
+    buffer element to be allocated.
+    */
+    for (i = 0 ; i < BI_NBUFS(type) * 2 ; i++) {
+        if (BI_FIXED(type, victim) == 0) {
+            if ( BI_BITS(type, victim) & REFER) {
+                //  set the REFER bit to 0.
+                BI_BITS(type, victim) ^= REFER;
+            }
+            else {
+                break;
+            }
+        }
+        victim = (victim + 1) % BI_NBUFS(type);
+
+    }
+
+    // if visited twice fully, ERR return
+    if (i == BI_NBUFS(type) * 2) ERR(eNOUNFIXEDBUF_BFM);
+    
+
+    //check if victim is NIL (nothing to initial)
+    if (BI_KEY(type, victim).pageNo != NIL) {
+
+        /*
+        If the page/train residing in the selected buffer element has been
+        modified, flush the contents of the buffer element into the disk.
+        */
+        if (BI_BITS(type, victim) & DIRTY) {
+            e = edubfm_FlushTrain(&BI_KEY(type, victim), type);
+            if (e < 0) 
+                ERR(e);
+        }
+        /*
+        Initialize the element of bufTable corresponding to the buffer element selected. 
+        */
+        BI_BITS(type, victim) = 0;
+
+        /* Set bufInfo.nextVictim to
+        ((the array index of the buffer element selected + 1) % bufInfo.nBufs).
+        */
+        BI_NEXTVICTIM(type) = (victim + 1) % BI_NBUFS(type);
+
+        /*
+        Delete the array index of the buffer element (hashTable entry) from hashTable (linked list).
+        */
+        e = edubfm_Delete(&BI_KEY(type, victim), type);
+        if (e < 0) 
+            ERR(e);
+    }
+    
+    return(victim);
     
 }  /* edubfm_AllocTrain */

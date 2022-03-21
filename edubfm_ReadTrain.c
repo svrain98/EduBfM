@@ -71,10 +71,18 @@ Four edubfm_ReadTrain(
 {
     Four e;			/* for error */
 
-
+    
 	/* Error check whether using not supported functionality by EduBfM */
 	if (RM_IS_ROLLBACK_REQUIRED()) ERR(eNOTSUPPORTED_EDUBFM);
 
+    /*
+    Store the page/train in a buffer element reading it from the
+    disk, and return the pointer to the corresponding buffer
+    element.
+    */
+    e = RDsM_ReadTrain(trainId, aTrain, BI_BUFSIZE(type));
+    if ( !e )
+        ERR( e ); 
 
 
     return( eNOERROR );

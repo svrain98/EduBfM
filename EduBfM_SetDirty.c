@@ -70,8 +70,21 @@ Four EduBfM_SetDirty(
     /*@ Is the paramter valid? */
     if (IS_BAD_BUFFERTYPE(type)) ERR(eBADBUFFERTYPE_BFM);
 
+    // Set the DIRTY bit to 1 to indicate that the page/train residing in the buffer element has been modified.
 
+    /**
+    Search for the array index of the buffer element containing the
+    page/train modified from hashTable using the hash value of the
+    page/train.
+    **/
+    index = edubfm_LookUp(trainId, type);
 
+    if (index == NOTFOUND_IN_HTABLE) {
+        ERR( eNOTFOUND_BFM );
+    }
+
+    //Set the DIRTY bit of the buffer element to 1
+    BI_BITS(type, index) |= DIRTY;
     return( eNOERROR );
 
 }  /* EduBfM_SetDirty */

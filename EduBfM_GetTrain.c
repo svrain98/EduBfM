@@ -75,7 +75,6 @@ Four EduBfM_GetTrain(
     Four                e;                      /* for error */
     Four                index;                  /* index of the buffer pool */
 
-
     /*@ Check the validity of given parameters */
     /* Some restrictions may be added         */
     if(retBuf == NULL) ERR(eBADBUFFER_BFM);
@@ -83,7 +82,40 @@ Four EduBfM_GetTrain(
     /* Is the buffer type valid? */
     if(IS_BAD_BUFFERTYPE(type)) ERR(eBADBUFFERTYPE_BFM);	
 
+    // Search for array index
+    index = edubfm_LookUp(trainId, type);
 
+    // If the page/train to be fixed does not exist in bufferPool
+    if ( index == NOTFOUND_IN_HTABLE ) {
+        // Allocate a buffer element to store the page/train from bufferPool.
+        index = edubfm_AllocTrain(type);
+        
+        // Store the page/train in the allocated buffer element reading it from the disk.
+        e = edubfm_ReadTrain(trainId, BI_BUFFER(type, index), type);
+        if (e < 0)
+            ERR(e);
+        
+        // Update the element of bufTable corresponding to the allocated buffer element.
+        BI_KEY(type, index).pageNo = trainId->pageNo;
+        BI_KEY(type, index).volNo = trainId->volNo;
+
+        BI_FIXED(type, index) = 1;
+
+        BI_BITS(type, index) |= REFER;
+
+        //– Insert the array index of the allocated buffer element into hashTable.
+        e = edubfm_Insert(&BI_KEY(type, index), index, type);
+        if (e < 0)
+            ERR(e);
+    }
+    // If the page/train to be fixed exists in bufferPool
+    else {
+        BI_FIXED(type, index) += 1;
+        BI_BITS(type, index) |= REFER;
+
+    }
+    // Return the pointer to the buffer element. 
+    *retBuf = BI_BUFFER(type, index);
 
     return(eNOERROR);   /* No error */
 
